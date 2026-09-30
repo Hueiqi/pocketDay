@@ -6,7 +6,6 @@ import '../models/goal.dart';
 import '../store/pocket_store.dart';
 import '../theme/app_colors.dart';
 import '../utils/money.dart';
-import '../constants/accounts.dart';
 import 'ledger_screen.dart';
 import 'category_settings.dart';
 
@@ -752,7 +751,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       isExpanded: true,
                       initialValue: account,
                       decoration: const InputDecoration(labelText: 'Account'),
-                      items: accounts
+                      items: store.accounts
                           .map(
                             (a) => DropdownMenuItem(value: a, child: Text(a)),
                           )

@@ -3,7 +3,8 @@ import 'package:intl/intl.dart';
 import '../models/entry.dart';
 import '../store/pocket_store.dart';
 import '../theme/app_colors.dart';
-import '../constants/accounts.dart';
+import '../widgets/add_account_dialog.dart';
+import 'account_order_screen.dart';
 import '../utils/money.dart';
 import '../utils/entry_filters.dart';
 import '../widgets/spending_pie.dart';
@@ -675,6 +676,31 @@ class _MoneyLedgerState extends State<MoneyLedger> {
   }
 
   List<Widget> accountList(List<Entry> rows) => [
+    Padding(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+      child: OutlinedButton.icon(
+        onPressed: () => Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AccountOrderScreen(store: widget.store),
+          ),
+        ),
+        icon: const Icon(Icons.reorder),
+        label: const Text('Reorder account categories'),
+      ),
+    ),
+    Padding(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+      child: FilledButton.icon(
+        onPressed: () => showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AddAccountDialog(store: widget.store),
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('Add account category'),
+      ),
+    ),
     const Padding(
       padding: EdgeInsets.all(18),
       child: Text(
@@ -682,7 +708,7 @@ class _MoneyLedgerState extends State<MoneyLedger> {
         style: TextStyle(color: Colors.grey, fontSize: 12),
       ),
     ),
-    ...accounts.map((a) {
+    ...widget.store.accounts.map((a) {
       final filtered = rows.where((e) => e.account == a).toList();
       return Container(
         color: Colors.white,
@@ -773,7 +799,7 @@ class _MoneyLedgerState extends State<MoneyLedger> {
                   isExpanded: true,
                   initialValue: a,
                   decoration: const InputDecoration(labelText: 'Account'),
-                  items: ['All', ...accounts]
+                  items: ['All', ...widget.store.accounts]
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
                   onChanged: (v) => update(() => a = v!),

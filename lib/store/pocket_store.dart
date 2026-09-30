@@ -5,11 +5,14 @@ import 'package:http/http.dart' as http;
 import '../models/entry.dart';
 import '../models/goal.dart';
 import '../models/category.dart';
+import '../constants/accounts.dart' as defaults;
 
 class PocketStore extends ChangeNotifier {
   final SharedPreferences prefs;
   List<Entry> entries = [];
   List<Goal> goals = [];
+  List<String> _accounts = [...defaults.accounts];
+  List<String> get accounts => List.unmodifiable(_accounts);
   Map<String, int> balanceOffsets = {};
   List<LedgerCategory> categories = [...defaultCategories];
   double? rate;
@@ -29,6 +32,9 @@ class PocketStore extends ChangeNotifier {
             .map((e) => Goal.fromJson(e))
             .toList();
         final loadedOffsets = Map<String, int>.from(j['balanceOffsets'] ?? {});
+        final loadedAccounts = List<String>.from(
+          j['accounts'] ?? defaults.accounts,
+        );
         final loadedCategories = j['categories'] == null
             ? [...defaultCategories]
             : (j['categories'] as List)
@@ -38,6 +44,7 @@ class PocketStore extends ChangeNotifier {
         goals = loadedGoals;
         balanceOffsets = loadedOffsets;
         categories = loadedCategories;
+        _accounts = loadedAccounts;
       }
     } catch (_) {
       loadError =
@@ -61,6 +68,7 @@ class PocketStore extends ChangeNotifier {
     List<Goal> nextGoals, {
     Map<String, int>? offsets,
     List<LedgerCategory>? nextCategories,
+    List<String>? nextAccounts,
   }) async {
     if (loadError != null) throw StateError(loadError!);
     final ok = await prefs.setString(
@@ -69,6 +77,7 @@ class PocketStore extends ChangeNotifier {
         'entries': nextEntries.map((e) => e.toJson()).toList(),
         'goals': nextGoals.map((g) => g.toJson()).toList(),
         'balanceOffsets': offsets ?? balanceOffsets,
+        'accounts': nextAccounts ?? _accounts,
         'categories': (nextCategories ?? categories)
             .map((c) => c.toJson())
             .toList(),
@@ -79,11 +88,38 @@ class PocketStore extends ChangeNotifier {
     goals = nextGoals;
     if (offsets != null) balanceOffsets = offsets;
     if (nextCategories != null) categories = nextCategories;
+    if (nextAccounts != null) _accounts = nextAccounts;
     notifyListeners();
   }
 
   List<LedgerCategory> categoriesFor(String kind) =>
       categories.where((c) => c.kind == kind && !c.archived).toList();
+
+  String? accountNameError(String name) {
+    final clean = name.trim();
+    if (clean.isEmpty) return 'Enter an account category name';
+    if (clean.length > 40) return 'Use 40 characters or fewer';
+    if (clean.toLowerCase() == 'all') return 'Choose a name other than All';
+    if (_accounts.any((a) => a.toLowerCase() == clean.toLowerCase())) {
+      return 'This account category already exists';
+    }
+    return null;
+  }
+
+  Future<void> addAccount(String name) {
+    final error = accountNameError(name);
+    if (error != null) throw ArgumentError(error);
+    return commit(entries, goals, nextAccounts: [..._accounts, name.trim()]);
+  }
+
+  Future<void> reorderAccounts(List<String> order) {
+    if (order.length != _accounts.length ||
+        order.toSet().length != _accounts.length ||
+        !order.toSet().containsAll(_accounts)) {
+      throw ArgumentError('The order must include every account exactly once.');
+    }
+    return commit(entries, goals, nextAccounts: [...order]);
+  }
 
   LedgerCategory categoryFor(String name, String kind) => categories.firstWhere(
     (c) => c.name == name && c.kind == kind,
